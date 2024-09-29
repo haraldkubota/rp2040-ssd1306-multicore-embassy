@@ -79,10 +79,9 @@ async fn core0_task(i2c1: embassy_rp::i2c::I2c<'static, I2C1, Async>) {
 
     loop {
         CHANNEL.send(DisplayMessage::LedOn).await;
-        Timer::after_millis(100).await;
+        let distance = tof.read_range_single_millimeters_blocking().unwrap();
         CHANNEL.send(DisplayMessage::LedOff).await;
-        Timer::after_millis(400).await;
-        let distance = tof.read_range_continuous_millimeters_blocking().unwrap();
+        Timer::after_millis(500).await;
         CHANNEL.send(DisplayMessage::Distance(distance)).await;
     }
 }
