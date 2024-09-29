@@ -5,8 +5,9 @@ I was looking for a ready-to-use [Embassy](https://embassy.dev/) example using a
 ## Hardware Requirements
 
 * RP2040
-* I2C SSD1306 OLED display (128x64 pixel)
 * RPi Pico Probe (for downloading and status messages from the RP2040)
+* I2C SSD1306 OLED display (128x64 pixel)
+* VL53L0X as a distance measuring sensor
 
 ## Software Requirements
 
@@ -27,27 +28,27 @@ $ cargo binstall probe-rs
 ```
 $ cargo binstall cargo-binutils
 $ cargo size
-    Finished `dev` profile [optimized + debuginfo] target(s) in 0.04s
+    Finished `dev` profile [optimized + debuginfo] target(s) in 0.05s
    text    data     bss     dec     hex filename
-  16832       0  103960  120792   1d7d8 led-multicore
+  42356       0  103960  146316   23b8c rp-ssd1306
 ```
 
 ## Running it
 
-I am using GPIO4 and GPIO5 for I2C SDA and SCL
+The OLED is connected to I2C0 (GPIO 4 and 5). The VL53L0X is connected to I2C1 (GPIO 2 and 3).
 
 ```
-$ cargo run
-   Compiling led-multicore v0.1.0 (/home/harald/git/rp2040-led-multicore-embassy)
-    Finished `dev` profile [optimized + debuginfo] target(s) in 0.82s
-     Running `probe-rs run --chip RP2040 --protocol swd target/thumbv6m-none-eabi/debug/led-multicore`
-      Erasing ✔ [00:00:00] [#########################################################################] 20.00 KiB/20.00 KiB @ 50.74 KiB/s (eta 0s )
-  Programming ✔ [00:00:01] [#########################################################################] 20.00 KiB/20.00 KiB @ 19.73 KiB/s (eta 0s )    Finished in 1.45s
+$ cargo run --release
+    Finished `release` profile [optimized + debuginfo] target(s) in 0.05s
+     Running `probe-rs run --chip RP2040 --protocol swd target/thumbv6m-none-eabi/release/rp-ssd1306`
+      Erasing ✔ [00:00:00] [###############################################] 36.00 KiB/36.00 KiB @ 48.32 KiB/s (eta 0s )
+  Programming ✔ [00:00:01] [###############################################] 36.00 KiB/36.00 KiB @ 18.73 KiB/s (eta 0s )    Finished in 2.738s
 INFO  Hello from core 0
-└─ led_multicore::__core0_task_task::{async_fn#0} @ src/main.rs:48  
+└─ rp_ssd1306::__core0_task_task::{async_fn#0} @ src/main.rs:74  
 INFO  Hello from core 1
-└─ led_multicore::__core1_task_task::{async_fn#0} @ src/main.rs:59
+└─ rp_ssd1306::__core1_task_task::{async_fn#0} @ src/main.rs:96
 ```
 
 Use ^C to stop, but the program will continue to run on the RPi Pico.
 
+![OLD and Sensor](./img/SSD1306-VL53L0X.jpg)
