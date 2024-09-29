@@ -74,14 +74,15 @@ async fn core0_task(i2c1: embassy_rp::i2c::I2c<'static, I2C1, Async>) {
     info!("Hello from core 0");
 
     let mut tof = vl53l0x::VL53L0x::new(i2c1).expect("tof");
-    tof.set_measurement_timing_budget(200000).expect("time budget");
+    // 50ms for one measurement, see also https://www.st.com/resource/en/datasheet/vl53l0x.pdf
+    tof.set_measurement_timing_budget(50000).expect("time budget");
     tof.start_continuous(0).unwrap();
 
     loop {
         CHANNEL.send(DisplayMessage::LedOn).await;
         let distance = tof.read_range_single_millimeters_blocking().unwrap();
         CHANNEL.send(DisplayMessage::LedOff).await;
-        Timer::after_millis(500).await;
+        Timer::after_millis(450).await;
         CHANNEL.send(DisplayMessage::Distance(distance)).await;
     }
 }
