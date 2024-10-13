@@ -36,7 +36,7 @@ static CHANNEL: Channel<CriticalSectionRawMutex, DisplayMessage, 1> = Channel::n
 enum DisplayMessage {
     LedOn,
     LedOff,
-    Distance(u16),
+    PAndT(f64, f64),
 }
 
 bind_interrupts!(struct Irqs {
@@ -69,32 +69,40 @@ fn main() -> ! {
 
 }
 
+// This task measures
+
 #[embassy_executor::task]
 async fn core0_task(i2c1: embassy_rp::i2c::I2c<'static, I2C1, Async>) {
     info!("Hello from core 0");
 
-    let mut tof = vl53l0x::VL53L0x::new(i2c1).expect("tof");
-    // 50ms for one measurement, see also https://www.st.com/resource/en/datasheet/vl53l0x.pdf
-    tof.set_measurement_timing_budget(50000).expect("time budget");
-    tof.start_continuous(0).unwrap();
-
+    let mut bmp280 = bmp280_ehal::BMP280::new(i2c1).expect("BMP280 not found");
+    let _ = bmp280.pressure_one_shot(); // Without this, BMP280 is not  well initialized (I get about 650 hPa)
+    
     loop {
         CHANNEL.send(DisplayMessage::LedOn).await;
-        let distance = tof.read_range_single_millimeters_blocking().unwrap();
+        let pressure = bmp280.pressure_one_shot();
+        let temp = bmp280.temp();
         CHANNEL.send(DisplayMessage::LedOff).await;
-        Timer::after_millis(450).await;
-        CHANNEL.send(DisplayMessage::Distance(distance)).await;
+        CHANNEL.send(DisplayMessage::PAndT(pressure, temp)).await;
+        Timer::after_millis(997).await;    // You can measure how much time the above takes by comparing
+        // now.as_millis() with counting how many times this loop ran.
+        // Above code takes about 3ms including the after_millis() overhead.
     }
 }
 
-const ROW_DISTANCE: u8 = 2;
+
+// This task does I/O
+
+const ROW_PRESSURE: u8 = 2;
+const ROW_TEMP: u8 = 3;
 const ROW_TIME: u8 = 4;
 const ROW_COUNTER: u8 = 5;
+const COL_DATA: u8 = 9;
 
 #[embassy_executor::task]
 async fn core1_task(mut led: Output<'static>, i2c0: embassy_rp::i2c::I2c<'static, I2C0, Async>) {
     info!("Hello from core 1");
-
+    
     let interface = I2CDisplayInterface::new(i2c0);
     let mut display =
         Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0).into_terminal_mode();
@@ -105,9 +113,11 @@ async fn core1_task(mut led: Output<'static>, i2c0: embassy_rp::i2c::I2c<'static
     let mut buffer = itoa::Buffer::new();
 
     display.clear().unwrap();
-    let _ = display.write_str("Distance Display\n");
-    display.set_position(0, ROW_DISTANCE).unwrap();
-    let _ = display.write_str("Distance:");
+    let _ = display.write_str("P&T Display\n");
+    display.set_position(0, ROW_PRESSURE).unwrap();
+    let _ = display.write_str("Pressure:");
+    display.set_position(0, ROW_TEMP).unwrap();
+    let _ = display.write_str("Temp:");
     display.set_position(0, ROW_TIME).unwrap();
     let _ = display.write_str("Time:");
     display.set_position(0, ROW_COUNTER).unwrap();
@@ -117,17 +127,26 @@ async fn core1_task(mut led: Output<'static>, i2c0: embassy_rp::i2c::I2c<'static
         match CHANNEL.receive().await {
             DisplayMessage::LedOn => led.set_high(),
             DisplayMessage::LedOff => led.set_low(),
-            DisplayMessage::Distance(d) => {
-                let s: &str = buffer.format(d);
-                display.set_position(10, ROW_DISTANCE).unwrap();
+            DisplayMessage::PAndT(p, t) => {
+                info!("p={}, t={}", p, t);
+                let s: &str = buffer.format((p/100.0) as u32); // use hPa (typical range: 990-1040)
+                display.set_position(COL_DATA, ROW_PRESSURE).unwrap();
                 let _ = display.write_str(s);
-                let _ = display.write_str("   ");
+                let _ = display.write_str(" ");
+                let s: &str = buffer.format(t as u16);
+                let after_comma_digits = ((t*100.0) as u16) % 100;
+                display.set_position(COL_DATA, ROW_TEMP).unwrap();
+                let _ = display.write_str(s);
+                let _ = display.write_str(".");
+                let s = buffer.format(after_comma_digits);
+                let _ = display.write_str(s);
+                let _ = display.write_str(" ");    
                 let now = Instant::now();
-                let s: &str = buffer.format(now.as_secs());
-                display.set_position(10, ROW_TIME).unwrap();
+                let s: &str = buffer.format(now.as_millis());
+                display.set_position(COL_DATA, ROW_TIME).unwrap();
                 let _ = display.write_str(s);
                 let s: &str = buffer.format(counter);
-                display.set_position(10, ROW_COUNTER).unwrap();
+                display.set_position(COL_DAT, ROW_COUNTER).unwrap();
                 let _ = display.write_str(s);
                 counter += 1;                
             }
