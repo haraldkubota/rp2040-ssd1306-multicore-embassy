@@ -146,7 +146,7 @@ async fn core1_task(mut led: Output<'static>, i2c0: embassy_rp::i2c::I2c<'static
                 display.set_position(COL_DATA, ROW_TIME).unwrap();
                 let _ = display.write_str(s);
                 let s: &str = buffer.format(counter);
-                display.set_position(COL_DAT, ROW_COUNTER).unwrap();
+                display.set_position(COL_DATA, ROW_COUNTER).unwrap();
                 let _ = display.write_str(s);
                 counter += 1;                
             }

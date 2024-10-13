@@ -1,13 +1,13 @@
 # Embedded Rust and Embassy and a display
 
-I was looking for a ready-to-use [Embassy](https://embassy.dev/) example using a SSD1306 via I2C on a RP2040. Could not find one, so I created this repo.
+BMP280 test
 
 ## Hardware Requirements
 
 * RP2040
 * RPi Pico Probe (for downloading and status messages from the RP2040)
 * I2C SSD1306 OLED display (128x64 pixel)
-* VL53L0X as a distance measuring sensor
+* BMP280 for pressure and temperature
 
 ## Software Requirements
 
@@ -35,20 +35,25 @@ $ cargo size
 
 ## Running it
 
-The OLED is connected to I2C0 (GPIO 4 and 5). The VL53L0X is connected to I2C1 (GPIO 2 and 3).
+The OLED is connected to I2C0 (GPIO 4 and 5). The BMP280 is connected to I2C1 (GPIO 2 and 3).
 
 ```
-$ cargo run --release
-    Finished `release` profile [optimized + debuginfo] target(s) in 0.05s
-     Running `probe-rs run --chip RP2040 --protocol swd target/thumbv6m-none-eabi/release/rp-ssd1306`
-      Erasing ✔ [00:00:00] [###############################################] 36.00 KiB/36.00 KiB @ 48.32 KiB/s (eta 0s )
-  Programming ✔ [00:00:01] [###############################################] 36.00 KiB/36.00 KiB @ 18.73 KiB/s (eta 0s )    Finished in 2.738s
+$ cargo run
+   Compiling rp-bmp280 v0.1.0 (/home/harald/src/rust/rp2040/bmp280)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 0.90s
+     Running `probe-rs run --chip RP2040 --protocol swd target/thumbv6m-none-eabi/debug/rp-bmp280`
+      Erasing ✔ [00:00:00] [##############################################################################] 40.00 KiB/40.00 KiB @ 51.87 KiB/s (eta 0s )
+  Programming ✔ [00:00:02] [##############################################################################] 40.00 KiB/40.00 KiB @ 19.05 KiB/s (eta 0s )    Finished in 2.964s
 INFO  Hello from core 0
-└─ rp_ssd1306::__core0_task_task::{async_fn#0} @ src/main.rs:74  
+└─ rp_bmp280::__core0_task_task::{async_fn#0} @ src/main.rs:76  
 INFO  Hello from core 1
-└─ rp_ssd1306::__core1_task_task::{async_fn#0} @ src/main.rs:96
+└─ rp_bmp280::__core1_task_task::{async_fn#0} @ src/main.rs:104 
+INFO  p=96619.25891922315, t=25.559689272218385
+└─ rp_bmp280::__core1_task_task::{async_fn#0} @ src/main.rs:131 
+INFO  p=100917.20994759991, t=25.62633829004044
+└─ rp_bmp280::__core1_task_task::{async_fn#0} @ src/main.rs:131 
+INFO  p=100944.19696621434, t=25.574500160483876
+└─ rp_bmp280::__core1_task_task::{async_fn#0} @ src/main.rs:131
 ```
 
 Use ^C to stop, but the program will continue to run on the RPi Pico.
-
-![OLD and Sensor](./img/SSD1306-VL53L0X.jpg)
